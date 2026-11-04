@@ -58,8 +58,8 @@ struct SettingsView: View {
                 )
 
                 Toggle(
-                    "Guests",
-                    isOn: $vm.prefs.guestNotificationsEnabled
+                    "Quests",
+                    isOn: $vm.prefs.questNotificationsEnabled
                 )
 
                 Button("Save Preferences") {

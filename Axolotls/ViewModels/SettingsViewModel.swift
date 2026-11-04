@@ -15,7 +15,7 @@ final class SettingsViewModel: ObservableObject {
     struct NotificationPreferences: Equatable {
         var groupInviteNotificationsEnabled = true
         var photosAvailableNotificationsEnabled = true
-        var guestNotificationsEnabled = true
+        var questNotificationsEnabled = true
     }
 
     @Published var prefs = NotificationPreferences()
