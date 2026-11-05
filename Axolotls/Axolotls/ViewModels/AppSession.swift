@@ -53,15 +53,19 @@ final class AppSession: ObservableObject {
                 ? try? snapshot?.data(as: UserProfile.self) : nil
                 Task { @MainActor in self?.profile = decoded }
             }
-        
-        /// Convenience for teammates who need a non-optional ID after sign-in.
-        var requireUserID: String {
-            guard let userID else { fatalError("requireUserID called while signed out") }
-            return userID
-        }
-        
-        func signOut() {
-            try? AccountService.shared.signOut()
+    }
+
+    /// Convenience for teammates who need a non-optional ID after sign-in.
+    var requireUserID: String {
+        guard let userID else { fatalError("requireUserID called while signed out") }
+        return userID
+    }
+
+    func signOut() {
+        do {
+            try AccountService.shared.signOut()
+        } catch {
+            print("Sign out failed: \(error)")
         }
     }
 }
