@@ -26,17 +26,20 @@ struct EditGroupView: View {
             )
             .navigationTitle("Edit Group")
             .toolbar{
-                Button("Cancel") {
-                    dismiss()
-                }
-                .disabled(viewModel.isSaving)
-                
-                Button("Save") {
-                    Task {
-                        await viewModel.saveChanges()
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Cancel") {
+                        dismiss()
                     }
+                    .disabled(viewModel.isSaving)
                 }
-                .disabled(viewModel.isSaving || !viewModel.isValid)
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Save") {
+                        Task {
+                            await viewModel.saveChanges()
+                        }
+                    }
+                    .disabled(viewModel.isSaving || !viewModel.isValid)
+                }
             }
             
         }

@@ -19,17 +19,16 @@ struct RootView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink { SettingsView() } label: { Image(systemName: "person.circle") }
                     }
+                    ToolbarItem(placement: .bottomBar) {
+                        NavigationLink("New Group") {
+                            NewGroupView()
+                        }
+                    }
                 }
                 GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
 
                 // TODO (Part B): Join Group View
                 // TODO (Part C): Camera
-            }.toolbar {
-                ToolbarItem(placement: .bottomBar) {
-                    NavigationLink("New Group") {
-                        NewGroupView()
-                    }
-                }
             }
         }
     }

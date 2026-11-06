@@ -23,7 +23,12 @@ final class NewGroupViewModel {
     }
     
     @MainActor
-    func createGroup() async -> Bool {
+    func createGroup(for userID: String?) async -> Bool {
+        guard let userID else {
+            errorMessage = "You must be signed in to create a group."
+            return false
+        }
+        
         isSaving = true
         errorMessage = nil
         
@@ -37,9 +42,20 @@ final class NewGroupViewModel {
         )
         
         do {
-            try Firestore.firestore()
+            let groupReference = try Firestore.app
                 .collection("groups")
                 .addDocument(from: newGroup)
+            
+            let membership = Membership(
+                userId: userID,
+                groupId: groupReference.documentID,
+                role: "owner",
+                membershipStatus: "active",
+                joinedAt: Date()
+            )
+            try Firestore.app
+                .collection("membership")
+                .addDocument(from: membership)
             
             isSaving = false
             return true

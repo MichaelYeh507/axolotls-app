@@ -14,8 +14,8 @@ final class GroupsViewModel {
     var isLoading = false
     var errorMessage: String?
     
-    func loadGroups(for userID: String?) async {
-        guard let userID else {
+    func loadGroups(for userId: String?) async {
+        guard let userId else {
             groups = []
             isLoading = false
             errorMessage = nil
@@ -26,34 +26,36 @@ final class GroupsViewModel {
         errorMessage = nil
         
         do {
-            let decoder = Firestore.Decoder()
-            let userReference = Firestore.app
-                .collection("users")
-                .document(userID)
-
+            // Find memberships with this user
             let membershipSnapshot = try await Firestore.app
-                .collectionGroup("membership")
-                .whereField("user_id", isEqualTo: userReference)
+                .collection("membership")
+                .whereField("user_id", isEqualTo: userId)
                 .getDocuments()
-            
+
             let memberships = try membershipSnapshot.documents.map {
-                try decoder.decode(Membership.self, from: $0.data())
+                try $0.data(as: Membership.self)
             }
+
+            let membershipSnapshotTEST = try await Firestore.app
+                .collection("users")
+                .getDocuments()
+
             let activeGroupIds = Array(Set(memberships
                 .filter { $0.membershipStatus == "active" }
                 .map(\.groupId)))
             
+            // Find groups matching these memberships
             groups = try await activeGroupIds.asyncMap { groupId in
                 let snapshot = try await Firestore.app
                     .collection("groups")
                     .document(groupId)
                     .getDocument()
-                
-                guard let data = snapshot.data() else {
+
+                guard snapshot.exists else {
                     throw GroupsViewModelError.missingGroup(groupId)
                 }
-                
-                return try decoder.decode(Group.self, from: data)
+
+                return try snapshot.data(as: Group.self)
             }
             isLoading = false
         } catch {
@@ -68,8 +70,8 @@ final class GroupsViewModel {
     
         var errorDescription: String? {
             switch self {
-            case .missingGroup(let groupID):
-                return "The group \(groupID) could not be found."
+            case .missingGroup(let groupId):
+                return "The group \(groupId) could not be found."
             }
         }
     }

@@ -55,7 +55,7 @@ final class EditGroupViewModel {
         )
         
         do {
-            try Firestore.firestore()
+            try Firestore.app
                 .collection("groups")
                 .document(groupID)
                 .setData(from: updatedGroup, merge: true)

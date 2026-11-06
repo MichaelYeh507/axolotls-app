@@ -14,7 +14,7 @@ struct Membership: Codable {
     var groupId: String
     var role: String?
     var membershipStatus: String?
-    var joinedAt: Date
+    var joinedAt: Date?
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"

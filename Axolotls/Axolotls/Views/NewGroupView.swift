@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct NewGroupView: View {
+    @EnvironmentObject private var session: AppSession
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = NewGroupViewModel()
     
@@ -21,13 +22,16 @@ struct NewGroupView: View {
             )
             .navigationTitle("New Group")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .disabled(viewModel.isSaving)
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .bottomBar) {
                     Button("Create") {
                         Task {
-                            if await viewModel.createGroup() { dismiss() }
+                            if await viewModel.createGroup(for: session.userID) { dismiss() }
                         }
                     }
                     .bold()

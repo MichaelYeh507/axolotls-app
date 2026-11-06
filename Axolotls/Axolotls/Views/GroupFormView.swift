@@ -13,14 +13,21 @@ struct GroupFormView: View {
     
     var body: some View {
         Form {
-            Section("Group Details") {
-                TextField("Group Name", text: $name)
-                TextField("Description", text: $description, axis: .vertical)
-                    .lineLimit(3...6)
-                DatePicker("When will this event end?", selection: $revealAt, displayedComponents: [.date, .hourAndMinute])
+            Section("Group Name") {
+                TextField("Name", text: $name)
             }
             
-            Section("Image") {
+            Section("Description") {
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(3...6)
+            }
+            
+            Section("Details") {
+                DatePicker(
+                    "When will this event end?",
+                    selection: $revealAt,
+                    displayedComponents: [.date, .hourAndMinute])
+                Text("[Image/Icon selection here]")
             }
         }
     }
