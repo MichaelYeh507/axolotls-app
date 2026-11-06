@@ -11,13 +11,24 @@ struct RootView: View {
         case .signedOut:
             AuthFlowView()
         case .signedIn:
-            HStack {
+            NavigationStack {
+                VStack(spacing: 12) {
+                    Text("Hi, \(session.profile?.displayName ?? "")!").font(.title2.bold())
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink { SettingsView() } label: { Image(systemName: "person.circle") }
+                    }
+                }
                 GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
 
-                NavigationStack {
-                    NewGroupView()
-                    // TODO (Part B): Join Group View
-                    // TODO (Part C): Camera
+                // TODO (Part B): Join Group View
+                // TODO (Part C): Camera
+            }.toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    NavigationLink("New Group") {
+                        NewGroupView()
+                    }
                 }
             }
         }

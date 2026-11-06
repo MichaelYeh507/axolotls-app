@@ -32,7 +32,7 @@ final class GroupsViewModel {
                 .document(userID)
 
             let membershipSnapshot = try await Firestore.app
-                .collectionGroup("members")
+                .collectionGroup("membership")
                 .whereField("user_id", isEqualTo: userReference)
                 .getDocuments()
             

@@ -44,7 +44,6 @@ struct GroupsView: View {
                     }
                 }
             }
-            .navigationTitle("Groups")
         }
         .task(id: session.userID) {
             await viewModel.loadGroups(for: session.userID)
