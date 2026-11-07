@@ -55,11 +55,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		B532F933309A6F9C00F414D2 /* ViewModels */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,7 +91,6 @@
 				B532F90C309A6D0200F414D2 /* AxolotlsTests */,
 				B532F916309A6D0200F414D2 /* AxolotlsUITests */,
 				B532F8FD309A6CFF00F414D2 /* Products */,
-				B532F933309A6F9C00F414D2 /* ViewModels */,
 				B532F92F309A6EF200F414D2 /* Services */,
 				B5999B94309AD15700CB7899 /* Frameworks */,
 			);
@@ -137,7 +131,6 @@
 			fileSystemSynchronizedGroups = (
 				B532F8FE309A6CFF00F414D2 /* Axolotls */,
 				B532F92F309A6EF200F414D2 /* Services */,
-				B532F933309A6F9C00F414D2 /* ViewModels */,
 			);
 			name = Axolotls;
 			packageProductDependencies = (
