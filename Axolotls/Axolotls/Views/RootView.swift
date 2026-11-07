@@ -26,9 +26,11 @@ struct RootView: View {
                     }
                 }
                 GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
+                    .safeAreaInset(edge: .bottom) {
+                        HomeCaptureButton() // Part C: camera (asks which group if you're in more than one)
+                    }
 
                 // TODO (Part B): Join Group View
-                // TODO (Part C): Camera
             }
         }
     }

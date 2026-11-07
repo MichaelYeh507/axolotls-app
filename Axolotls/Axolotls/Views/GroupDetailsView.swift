@@ -33,6 +33,8 @@ struct GroupDetailsView: View {
                         .foregroundStyle(.black)
                         .tint(coral)
 
+                    GroupCameraButton(group: group) // Part C: photos taken here go to this group
+
                     Text("Members")
                         .font(.largeTitle)
                     Text("[member info here]")

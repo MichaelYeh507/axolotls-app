@@ -1,12 +1,30 @@
 rules_version = '2';
 
-// Sprint 3 demo rules: any signed-in user can upload and read photos.
-// Replace before real users (for example: only group members can read
-// groups/{groupId}/photos, and only after the group's endsAt).
+// Cloud Storage rules for the app (Firebase project afterglow-6099d).
+// Firebase console → Storage → Rules → paste this → Publish.
+//
+// Photos live at groups/{groupId}/photos/{photoId}.jpg (Part C, PhotoService.swift).
+//   • Upload: signed in, a JPEG under 10 MB, tagged with the uploader's own uid
+//     (PhotoService sets the photographer_id metadata).
+//   • Delete: only the person who took it (PhotoService deletes the image if
+//     saving its Firestore record fails).
+//   • Read: any signed-in user, for now.
+//
+// Before real users: only group members should read a group's photos, and only
+// after the group's reveal_at. That needs a Firestore lookup from these rules.
+// (The Sprint 3 playground used the old project, which allowed any signed-in upload.)
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+    match /groups/{groupId}/photos/{fileName} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType == 'image/jpeg'
+                    && request.resource.metadata.photographer_id == request.auth.uid;
+
+      allow delete: if request.auth != null
+                    && resource.metadata.photographer_id == request.auth.uid;
     }
   }
 }
