@@ -12,7 +12,7 @@ import FirebaseFirestore
 final class NewGroupViewModel {
     var name: String = ""
     var description: String = ""
-    var mode: String = ""
+    var mode: String = "party"
     var revealAt: Date = Date().addingTimeInterval(86400) // Default to tomorrow
     
     var isSaving = false
@@ -64,7 +64,7 @@ final class NewGroupViewModel {
             return true
         } catch {
             isSaving = false
-            self.errorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription
             return false
         }
     }

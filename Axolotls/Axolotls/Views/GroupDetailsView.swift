@@ -10,6 +10,12 @@ import SwiftUI
 struct GroupDetailsView: View {
     var group: Group
     
+    @EnvironmentObject private var session: AppSession
+    @Environment(\.dismiss) private var dismiss
+    @State private var invitePopup = false
+    @State private var viewModel = GroupDetailsViewModel()
+    @State private var showConfirmation = false
+    
     var body: some View {
         let darkPurple = Color(red: 0.2196, green: 0.1568, blue: 0.3058)
         let mediumPurple = Color(red: 0.4117, green: 0.2941, blue: 0.5764)
@@ -28,14 +34,38 @@ struct GroupDetailsView: View {
                     Text(group.description)
                         .multilineTextAlignment(.leading)
 
-                    Button("Invite People") {} // TODO (Part B): Invites
-                        .buttonStyle(.borderedProminent)
-                        .foregroundStyle(.black)
-                        .tint(coral)
+                    Button("Invite People") {
+                        invitePopup.toggle()
+                    }.sheet(isPresented: $invitePopup) {
+                        GroupInviteModalView(group: group, members: viewModel.members)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .foregroundStyle(.black)
+                    .tint(coral)
 
                     Text("Members")
                         .font(.largeTitle)
-                    Text("[member info here]")
+                    SwiftUI.Group {
+                        if viewModel.isLoading {
+                            ProgressView("Loading members...")
+                        } else if let errorMessage = viewModel.errorMessage {
+                            ContentUnavailableView(
+                                "Unable to Load Members",
+                                systemImage: "exclamationmark.triangle",
+                                description: Text(errorMessage)
+                            )
+                        } else if viewModel.members.isEmpty {
+                            ContentUnavailableView(
+                                "No Other Members Yet",
+                                systemImage: "person.3",
+                                description: Text("Members added to the group will appear here.")
+                            )
+                        } else {
+                            List(viewModel.members) { member in
+                                Text(member.username).foregroundStyle(.black)
+                            }
+                        }
+                    }
 
                     Text("Photos")
                         .font(.largeTitle)
@@ -46,27 +76,47 @@ struct GroupDetailsView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-//                    NavigationLink {
-//                        EditGroupView(group: group)
-//                    } label: {
-//                        Image(systemName: "ellipsis")
-//                    }.foregroundStyle(.black)
                     Menu {
-                        Button("[Edit Group]") {
-                            // fix navigation link
+                        NavigationLink("Edit Group") {
+                            EditGroupView(group: group)
                         }
-                        Button("[Invite People]") {
-                            // invite pop up screen
+                        Button("Invite People") {
+                            invitePopup.toggle()
+                        }.sheet(isPresented: $invitePopup) {
+                            GroupInviteModalView(group: group, members: viewModel.members)
                         }
-                        Button("[Leave Group]") {
-                            // leave group
+                        Button("Leave Group", role: .destructive) {
+                            showConfirmation = true
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                    }.foregroundStyle(.black)
+                    }
+                    .foregroundStyle(.black)
+                    .confirmationDialog(
+                        "Permanently leave the group?",
+                        isPresented: $showConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Leave Group", role: .destructive) {
+                            Task {
+                                if await viewModel.leaveGroup(
+                                    groupId: group.id,
+                                    userId: session.userID
+                                ) {
+                                    dismiss()
+                                }
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("You cannot undo this action.")
+                    }
                 }
             }
             .foregroundStyle(.white)
+            .task(id: session.userID) {
+                await viewModel.loadMembers(groupId: group.id, curUserId: session.userID)
+            }
         }
     }
 }

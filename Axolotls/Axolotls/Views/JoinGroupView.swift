@@ -24,7 +24,7 @@ struct JoinGroupView: View {
         Text("Join Group").font(.largeTitle)
         Form {
             Section("Enter the 6-digit code to join a group") {
-                SegmentedJoinCodeView(joinCode: $joinCode)
+                JoinCodeFormView(joinCode: $joinCode)
             }
         }
         

@@ -60,7 +60,7 @@ final class GroupsViewModel {
             errorMessage = error.localizedDescription
         }
     }
-
+    
     private enum GroupsViewModelError: LocalizedError {
         case missingGroup(String)
     
@@ -71,9 +71,10 @@ final class GroupsViewModel {
             }
         }
     }
+    
 }
 
-private extension Array {
+extension Array {
     func asyncMap<T>(
         _ transform: (Element) async throws -> T
     ) async throws -> [T] {
