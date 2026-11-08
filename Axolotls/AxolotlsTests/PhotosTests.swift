@@ -22,7 +22,7 @@ private func makeGroup(id: String? = "g_axolotls",
                        createdAt: Date = start,
                        revealAt: Date = start.addingTimeInterval(16 * hour)) -> Group {
     Group(id: id, name: name, description: "The best group of people ever.",
-          mode: mode, createdAt: createdAt, revealAt: revealAt)
+          mode: mode, createdAt: createdAt, revealAt: revealAt, joinCode: "123456")
 }
 
 /// A solid-color image of the given pixel size, as PNG data.

@@ -54,6 +54,7 @@ struct SignUpView: View {
                 .disabled(!vm.canSubmit)
             }
         }
+        .scrollContentBackground(.hidden)
         .navigationTitle("Sign Up")
     }
 }
@@ -87,6 +88,7 @@ struct SignInView: View {
                     .disabled(vm.email.isEmpty)
             }
         }
+        .scrollContentBackground(.hidden)
         .navigationTitle("Sign In")
     }
 }

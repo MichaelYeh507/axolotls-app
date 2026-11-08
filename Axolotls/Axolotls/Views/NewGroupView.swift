@@ -18,6 +18,7 @@ struct NewGroupView: View {
             GroupFormView(
                 name: $viewModel.name,
                 description: $viewModel.description,
+                mode: $viewModel.mode,
                 revealAt: $viewModel.revealAt
             )
             .navigationTitle("New Group")
