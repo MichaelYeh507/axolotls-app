@@ -39,6 +39,18 @@ final class JoinGroupViewModel {
             
             let groupReference = groupSnapshot.documents[0]
             
+            let membershipSnapshot = try await Firestore.app
+                .collection("membership")
+                .whereField("user_id", isEqualTo: userId)
+                .whereField("group_id", isEqualTo: groupReference.documentID)
+                .getDocuments()
+            
+            if membershipSnapshot.documents.count != 0 {
+                isSaving = false
+                errorMessage = "Already in this group"
+                return false
+            }
+            
             let membership = Membership(
                 userId: userId,
                 groupId: groupReference.documentID,
