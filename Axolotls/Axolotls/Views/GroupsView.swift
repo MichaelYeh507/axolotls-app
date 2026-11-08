@@ -81,7 +81,9 @@ struct GroupsView: View {
         switch route {
         case .guessPhotoTakers(let groupID):
             if let group = viewModel.groups.first(where: { $0.id == groupID }) {
-                GuessPhotoTakersView(group: group)
+                GuessPhotoTakersView(group: group) {
+                    revealRoute = .album(groupID: groupID) // swap the game for the group page
+                }
             }
         case .album(let groupID):
             if let group = viewModel.groups.first(where: { $0.id == groupID }) {
