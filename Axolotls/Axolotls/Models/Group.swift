@@ -18,6 +18,7 @@ struct Group: Codable, Identifiable {
     var mode: String
     var createdAt: Date
     var revealAt: Date
+    var joinCode: String
     
     // MARK: Codable
     enum CodingKeys: String, CodingKey {
@@ -27,5 +28,6 @@ struct Group: Codable, Identifiable {
         case mode
         case createdAt = "created_at"
         case revealAt = "reveal_at"
+        case joinCode = "join_code"
     }
 }

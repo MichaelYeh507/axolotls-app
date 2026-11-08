@@ -46,8 +46,21 @@ struct GroupDetailsView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        EditGroupView(group: group)
+//                    NavigationLink {
+//                        EditGroupView(group: group)
+//                    } label: {
+//                        Image(systemName: "ellipsis")
+//                    }.foregroundStyle(.black)
+                    Menu {
+                        Button("[Edit Group]") {
+                            // fix navigation link
+                        }
+                        Button("[Invite People]") {
+                            // invite pop up screen
+                        }
+                        Button("[Leave Group]") {
+                            // leave group
+                        }
                     } label: {
                         Image(systemName: "ellipsis")
                     }.foregroundStyle(.black)

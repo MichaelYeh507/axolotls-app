@@ -36,10 +36,6 @@ final class GroupsViewModel {
                 try $0.data(as: Membership.self)
             }
 
-            let membershipSnapshotTEST = try await Firestore.app
-                .collection("users")
-                .getDocuments()
-
             let activeGroupIds = Array(Set(memberships
                 .filter { $0.membershipStatus == "active" }
                 .map(\.groupId)))

@@ -14,18 +14,28 @@ struct RootView: View {
             NavigationStack {
                 VStack(spacing: 12) {
                     Text("Hi, \(session.profile?.displayName ?? "")!").font(.title2.bold())
+                    GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
+                    
+                    NavigationLink("New Group") {
+                        NewGroupView()
+                    }
+                    
+                    NavigationLink("Join Group") {
+                        JoinGroupView()
+                    }
+
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink { SettingsView() } label: { Image(systemName: "person.circle") }
                     }
-                    ToolbarItem(placement: .bottomBar) {
-                        NavigationLink("New Group") {
-                            NewGroupView()
-                        }
-                    }
+//                    ToolbarItem(placement: .bottomBar) {
+//                        NavigationLink("New Group") {
+//                            NewGroupView()
+//                        }
+//                    }
                 }
-                GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
+//                GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
 
                 // TODO (Part B): Join Group View
                 // TODO (Part C): Camera
