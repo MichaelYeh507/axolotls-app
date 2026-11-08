@@ -4,6 +4,7 @@ import Combine
 struct RootView: View {
     @EnvironmentObject var session: AppSession
     @State private var viewModel = RootViewModel()
+    @State private var groupsRefreshID = 0
 
     var body: some View {
         let darkPurple = Color(red: 0.2196, green: 0.1568, blue: 0.3058)
@@ -41,6 +42,7 @@ struct RootView: View {
                                 pendingGroups: viewModel.pending,
                                 refreshPending: {
                                     await viewModel.loadPending(for: session.userID)
+                                    groupsRefreshID += 1
                                 }
                             )
                             
@@ -64,7 +66,7 @@ struct RootView: View {
                                 .tint(coral)
                             }
                             
-                            GroupsView() // TODO (Part B): Collapse view if there are a lot of groups
+                            GroupsView(refreshID: groupsRefreshID) // TODO (Part B): Collapse view if there are a lot of groups
                             
                             // TODO (Part C): Camera
 

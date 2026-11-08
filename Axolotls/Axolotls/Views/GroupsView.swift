@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct GroupsView: View {
+    var refreshID: Int
+    
     @EnvironmentObject private var session: AppSession
     @State private var viewModel = GroupsViewModel()
     
@@ -44,7 +46,7 @@ struct GroupsView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .task(id: session.userID) {
+        .task(id: "\(session.userID ?? "")-\(refreshID)") {
             await viewModel.loadGroups(for: session.userID)
         }
     }
