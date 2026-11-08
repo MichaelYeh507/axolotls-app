@@ -4,11 +4,13 @@
 //
 //  Created by Stephanie Reed on 11/5/26.
 //
+
 import SwiftUI
 
 struct GroupFormView: View {
     @Binding var name: String
     @Binding var description: String
+    @Binding var mode: String
     @Binding var revealAt: Date
     
     var body: some View {
@@ -23,6 +25,13 @@ struct GroupFormView: View {
             }
             
             Section("Details") {
+                Toggle(
+                    "Travel mode",
+                    isOn: Binding(
+                        get: { mode == "travel" },
+                        set: { mode = $0 ? "travel" : "party" }
+                    )
+                )
                 DatePicker(
                     "When will this event end?",
                     selection: $revealAt,
