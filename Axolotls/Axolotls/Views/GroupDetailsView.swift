@@ -25,53 +25,66 @@ struct GroupDetailsView: View {
             LinearGradient(
               gradient: Gradient(colors: [darkPurple, mediumPurple]),
               startPoint: .trailing,
-              endPoint: .bottomLeading)
+              endPoint: .bottomLeading
+            ).ignoresSafeArea()
 
             NavigationStack {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(group.name)
-                        .font(.largeTitle)
+                        .font(.largeTitle).bold()
                     Text(group.description)
                         .multilineTextAlignment(.leading)
 
-                    Button("Invite People") {
-                        invitePopup.toggle()
-                    }.sheet(isPresented: $invitePopup) {
-                        GroupInviteModalView(group: group, members: viewModel.members)
+                    VStack {
+                        Button("Invite People") {
+                            invitePopup.toggle()
+                        }.sheet(isPresented: $invitePopup) {
+                            GroupInviteModalView(group: group, members: viewModel.members)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.roundedRectangle)
+                        .controlSize(.large)
+                        .foregroundStyle(.black)
+                        .tint(coral)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .foregroundStyle(.black)
-                    .tint(coral)
+                    .frame(maxWidth: .infinity)
 
                     Text("Members")
-                        .font(.largeTitle)
+                        .font(.title).bold()
                     SwiftUI.Group {
                         if viewModel.isLoading {
                             ProgressView("Loading members...")
-                        } else if let errorMessage = viewModel.errorMessage {
-                            ContentUnavailableView(
-                                "Unable to Load Members",
-                                systemImage: "exclamationmark.triangle",
-                                description: Text(errorMessage)
-                            )
+                        } else if viewModel.errorMessage != nil {
+                            Text("Unable to load members")
                         } else if viewModel.members.isEmpty {
-                            ContentUnavailableView(
-                                "No Other Members Yet",
-                                systemImage: "person.3",
-                                description: Text("Members added to the group will appear here.")
-                            )
+                            Text("Members added to the group will appear here.")
                         } else {
-                            List(viewModel.members) { member in
-                                Text(member.username).foregroundStyle(.black)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 12) {
+                                    ForEach(viewModel.members) { member in
+                                        Text(member.username)
+                                            .foregroundStyle(.black)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .background(.white.opacity(0.9))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                .padding(.vertical, 4)
                             }
+                            .frame(height: 50)
                         }
                     }
 
                     Text("Photos")
-                        .font(.largeTitle)
-                    Text("[photos here]")
+                        .font(.title).bold()
+                    Text("[photos here in V2]")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: .topLeading
+                )
                 .padding()
             }
             .toolbar {

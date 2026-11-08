@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SegmentedJoinCodeView: View {
     var joinCode: String
-    @FocusState private var isFocused: Bool
+    var isFocused = false
     
     private let codeLength = 6
     
@@ -20,6 +20,7 @@ struct SegmentedJoinCodeView: View {
                 
                 Text(digit)
                     .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.black)
                     .frame(width: 45, height: 55)
                     .background(Color(.systemGray6))
                     .overlay(

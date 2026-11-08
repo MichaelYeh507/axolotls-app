@@ -15,14 +15,12 @@ struct InvitesView: View {
     @State private var viewModel = InvitesViewModel()
     
     var body: some View {
-        let coral = Color(red: 0.9921, green: 0.5882, blue: 0.5098)
-        
         SwiftUI.Group {
             if !pendingGroups.isEmpty {
                 List(pendingGroups) { group in
                     HStack {
                         Text("You were invited to join \(group.name)")
-                        Button("Accept") {
+                        Button {
                             Task {
                                 let accepted = await viewModel.acceptInvite(
                                     userId: session.userID,
@@ -32,13 +30,42 @@ struct InvitesView: View {
                                     await refreshPending()
                                 }
                             }
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .font(.subheadline.weight(.semibold))
                         }
-                        .buttonStyle(.borderedProminent)
-                        .foregroundStyle(.black)
-                        .tint(coral)
+                        .accessibilityLabel("Accept invite")
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .tint(.green)
+                        
+                        Button {
+                            Task {
+                                let accepted = await viewModel.declineInvite(
+                                    userId: session.userID,
+                                    groupId: group.id
+                                )
+                                if accepted {
+                                    await refreshPending()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .accessibilityLabel("Decline invite")
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .tint(.red)
                     }
+                    .padding(.vertical, 2)
+                    .listRowInsets(
+                        EdgeInsets(top: 2, leading: 20, bottom: 2, trailing: 8)
+                    )
                 }
+                .scrollContentBackground(.hidden)
             }
         }
+        .frame(height: 100)
     }
 }

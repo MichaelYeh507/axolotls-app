@@ -32,7 +32,7 @@ struct JoinCodeFormView: View {
                 }
             }
             
-            SegmentedJoinCodeView(joinCode: joinCode)
+            SegmentedJoinCodeView(joinCode: joinCode, isFocused: isFocused)
         }.onTapGesture { isFocused = true }
     }
 }
