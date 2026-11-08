@@ -68,7 +68,7 @@ struct RootView: View {
                             
                             GroupsView(refreshID: groupsRefreshID) // TODO (Part B): Collapse view if there are a lot of groups
                             
-                            // TODO (Part C): Camera
+                            HomeCaptureButton() // Part C: camera
 
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

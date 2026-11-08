@@ -1,4 +1,154 @@
-# Sprint 3 · API & JSON (The Axolotls)
+# Axolotls (Team 2): iOS app
+
+*Snap a memory. Reveal it later.* Everyone in a group takes photos during an event.
+The photos stay hidden until the event ends, and then the group plays "Guess the
+Photo Taker" with them.
+
+Team: Lily Beerhalter, Anabella Chyan, Stephanie Reed, Michael Yeh.
+
+---
+
+## Sprint 4 · Version 1
+
+| Part | Owner | What it covers | Status |
+|---|---|---|---|
+| A · Accounts | Anabella | Sign up, sign in, settings, account CRUD, and the signed-in/signed-out state (`AppSession`) | Merged |
+| B · Groups | Steph | Home, create/edit group, group page, join codes, invite pop-up, join flow | Create/read/edit merged; join and invites in progress |
+| C · Photos | Michael | Camera, upload to Storage, photo record, prompt on the camera | `partC-Photos` |
+| D · Reveal + game | Lily | Reveal timing, revealed album, guessing game, shared models / Firebase service layer | Not started in the repo yet |
+
+The Version 1 schedule (from the Sprint 3 report) has Account Management, Group Page,
+Group Share and Camera due Nov 1, and Photo Delay/Reveal and the Guessing Game due Nov 8.
+
+## Running the app
+
+1. Use **Xcode 26.5 or later** (the deployment target is iOS 26.5).
+2. Open `Axolotls/Axolotls.xcodeproj`. Xcode downloads the Firebase packages the first time, which takes a minute or two.
+3. Pick an iPhone simulator and press **Run** (⌘R).
+4. Tap **Get Started** to make an account (email and password), or sign in.
+
+On a real iPhone, choose your own team under *Signing & Capabilities* first.
+
+**Camera on the Simulator:** the Simulator has no camera. The Camera screen detects
+that and shows **Choose a Photo** instead, so the whole flow (pick → review → send)
+still works on a laptop. On an iPhone it uses the real camera.
+
+## Running the tests
+
+Press **⌘U** (Product → Test). The tests use Swift Testing (`import Testing`, `@Test`, `#expect`)
+and live in `Axolotls/AxolotlsTests/`. They don't touch the network: Firebase and the
+camera are replaced with fakes.
+
+| File | Covers |
+|---|---|
+| `PhotosTests.swift` | Part C: photo record fields, quest selection and built-in prompts, which group a Home photo goes to, image resizing, and the Camera screen's flow (capture → review → send, retake, failed send and retry) |
+
+UI tests are optional this sprint.
+
+## Firebase
+
+| | |
+|---|---|
+| Project | `afterglow-6099d` (the app's config is `Axolotls/Axolotls/GoogleService-Info.plist`) |
+| Firestore | A **named** database, `afterglow`. Always use `Firestore.app` (in `FirestoreProvider.swift`), never `Firestore.firestore()`, which would read and write an empty default database. |
+| Authentication | Email/password |
+| Cloud Storage | Holds the photos. Storage needs the **Blaze** plan. Then go to **Build → Storage → Get started**, open **Rules**, paste `firebase/storage.rules`, and **Publish**. |
+
+The Sprint 3 project (`axolotls-d0d4f`) with the 539 sample documents is only used by the playground below.
+
+### Data the app reads and writes
+
+Field names in Firestore are `snake_case`. Swift properties are `camelCase`, mapped with `CodingKeys`.
+
+| Path | Model | Written by |
+|---|---|---|
+| `users/{uid}` | `UserProfile` | A |
+| `usernames/{username}` | `UsernameClaim` | A |
+| `groups/{groupId}` (`name`, `description`, `mode`, `created_at`, `reveal_at`, `photo_count`) | `Group` | B (C adds 1 to `photo_count` per photo) |
+| `membership/{autoId}` (`user_id`, `group_id`, `role`, `membership_status`, `joined_at`) | `Membership` | B |
+| `groups/{groupId}/photos/{photoId}` (`photo_asset`, `group_id`, `photographer_id`, `captured_at`, `quest_id`, `quest_prompt`) | `GroupPhoto` | C |
+| `groups/{groupId}/quests/{questId}` (`prompt`, `checkable`, `order`, `starts_at`, `ends_at`, `source`) | `Quest` | Nothing yet (Gemini prompts are Version 2) |
+| Storage `groups/{groupId}/photos/{photoId}.jpg` | the image | C |
+
+A group's photos are revealed when `reveal_at` passes. That's also when the camera stops accepting new ones.
+
+## Code layout and team conventions
+
+```
+Axolotls/
+├── Axolotls/                 app target
+│   ├── AxolotlsApp.swift     configures Firebase, injects AppSession
+│   ├── FirestoreProvider.swift   Firestore.app (the "afterglow" database)
+│   ├── Models/               Codable structs, one per Firestore collection
+│   ├── ViewModels/           @Observable / ObservableObject state for screens
+│   └── Views/                SwiftUI screens (Views/Camera/ is Part C)
+├── Services/                 Firebase and device code (AccountService, PhotoService, CameraSession, ...)
+├── AxolotlsTests/            unit tests (Swift Testing)
+└── AxolotlsUITests/          UI tests (optional)
+```
+
+- **New files are picked up automatically.** These folders are synced folders in Xcode,
+  so adding a `.swift` file doesn't change `project.pbxproj`. Each part can work in its own
+  files without merge conflicts.
+- **The project file is shared.** Adding a package or changing a build setting edits
+  `project.pbxproj`. Tell the team when you do, and pull before you push. Part C added
+  `FirebaseStorage` and the camera permission text (`NSCameraUsageDescription`).
+- **Who's signed in:** read `@EnvironmentObject var session: AppSession`, then `session.userID`.
+- **`Group` hides SwiftUI's `Group` view.** Write `SwiftUI.Group { ... }` when you mean the view.
+- **Shared models:** until Part D's shared layer lands, each part defines the models it
+  needs in `Models/`. D can merge them later.
+- **Branches:** one branch per part (`partB-Groups`, `partC-Photos`, ...), merged into `main` with a pull request.
+
+## Part C · Photos
+
+Photos can be taken from two places:
+
+- **Group page → Take a Photo.** The photo goes to that group. The button is hidden once the event has ended.
+- **Home → shutter button.** If you're in one active group, the camera opens for it. If you're in several, you pick one first. If you're in none, an alert says to create or join a group.
+
+The Camera screen shows the group's name and its current **quest prompt**, with the time left
+on it. It uses the group's active quest from `groups/{id}/quests` if there is one. Otherwise it
+uses a built-in prompt that changes every 2 hours. The built-in prompts come in party, vacation
+and general sets, chosen by the group's `mode`. They're shuffled per group with a stable hash,
+so everyone in a group sees the same prompt at the same time.
+
+After a shot you can **Retake** or **Send**. Sending does three things:
+
+1. Resizes the photo (2048 px on the long side, JPEG).
+2. Uploads it to Storage.
+3. Writes the `GroupPhoto` record and `photo_count + 1` in one batch. If that write fails, the uploaded image is deleted.
+
+A failed send keeps the photo on screen so you can try again.
+
+| File | What it is |
+|---|---|
+| `Views/Camera/CameraView.swift` | The Camera screen: preview, prompt, review, sent, and the library fallback |
+| `Views/Camera/HomeCaptureButton.swift`, `GroupCameraButton.swift`, `GroupPickerView.swift` | The two entry points and the group chooser |
+| `ViewModels/CameraViewModel.swift` | Screen state: ready → capturing → review → sending → sent |
+| `Services/CameraSession.swift` | AVFoundation camera (session on a background queue, flash, flip, level with the horizon) |
+| `Services/PhotoService.swift` | Upload and save; also reads photos back |
+| `Services/QuestService.swift`, `Models/Quest.swift` | Current prompt: group quests, then built-in prompts |
+| `Models/GroupPhoto.swift`, `Models/CaptureDestination.swift` | Photo record; which group a Home photo goes to |
+
+**For Part D (reveal + game):** `FirebasePhotoService().photos(inGroup:)` returns a group's
+`GroupPhoto`s, oldest first. `imageData(for:)` downloads one image (`UIImage(data:)` to show it).
+Each photo's `photographer_id` is the answer for the guessing game.
+
+**To test a group quest** instead of the built-in prompts, add a document in the Firebase console
+at `groups/{groupId}/quests/q_01` with:
+
+| Field | Type | Value |
+|---|---|---|
+| `prompt` | string | `Take a photo of a statue` |
+| `checkable` | boolean | `false` |
+| `order` | number | `1` |
+| `starts_at` | timestamp | now |
+| `ends_at` | timestamp | in an hour |
+| `source` | string | `bank` |
+
+---
+
+## Sprint 3 · API & JSON playground (archived)
 
 This folder holds the app's data layer and the Sprint 3 demo. It covers the
 data our app needs, where that data lives, and working code that reads and
@@ -34,24 +184,24 @@ the raw JSON before it's decoded.
 
 ---
 
-## One-time setup (about 15 minutes)
+### One-time setup (about 15 minutes)
 
 Our project, `axolotls-d0d4f`, already has steps 1 and 2 done: Firestore (nam5, US) with
 the demo rules published, and Anonymous sign-in on. Storage (step 3) is off. To run the
 demo, do step 4 (paste the two keys) and step 5. The steps are here for anyone setting up
 their own project.
 
-### 1. Create the Firebase project
+#### 1. Create the Firebase project
 1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Create a project**.
 2. Name it (for example `axolotls`). Google Analytics can stay off.
 
-### 2. Turn on Firestore and Authentication
+#### 2. Turn on Firestore and Authentication
 1. **Build → Firestore Database → Create database.** Pick a US location and start in **production mode**.
 2. Open the **Rules** tab, replace everything with `firebase/firestore.rules`, and click **Publish**.
 3. **Build → Authentication → Get started → Sign-in method → Anonymous → Enable → Save.**
    The playground signs in anonymously so the rules know a signed-in user is asking.
 
-### 3. Storage for photos (optional for the demo, needed for the app)
+#### 3. Storage for photos (optional for the demo, needed for the app)
 Cloud Storage now requires the **Blaze** (pay-as-you-go) plan, even though our usage
 stays inside the free allowance.
 1. Click **Upgrade** → Blaze and attach a billing account. Set a budget alert (for example $1) when asked.
@@ -60,7 +210,7 @@ stays inside the free allowance.
 
 To skip Storage for now, set `storageBucket: ""` in step 4. Page 3 will then skip the upload.
 
-### 4. Fill in `Sources/Secrets.swift`
+#### 4. Fill in `Sources/Secrets.swift`
 | Value | Where to find it |
 |---|---|
 | `projectID` | Firebase console → ⚙️ Project settings → General → **Project ID** (already filled in: `axolotls-d0d4f`) |
@@ -68,7 +218,7 @@ To skip Storage for now, set `storageBucket: ""` in step 4. Page 3 will then ski
 | `storageBucket` | `""` skips uploads. With Storage on, the Storage page header shows `gs://<something>.firebasestorage.app`; use the part after `gs://` |
 | `geminiAPIKey` | [aistudio.google.com](https://aistudio.google.com) → **Get API key** → Create API key. No billing needed. |
 
-### 5. Run it
+#### 5. Run it
 Use Xcode 26.0 or later, not a beta: the 26 betas had a bug compiling playgrounds that have a `Sources` folder.
 
 1. Double-click `Sprint3API.playground` to open it in Xcode. It's set to run only when you press Run, so typing your keys won't fire any API calls.
@@ -95,7 +245,7 @@ default photo is a drawing of a blue mug, so the statue quest should fail and
 
 ---
 
-## Recording the demo (two short clips)
+### Recording the demo (two short clips)
 
 The TA's example is a 20-second silent clip: the code on the left, the result on
 the right. Ours follow the same format, one clip per rubric item.
@@ -117,7 +267,7 @@ the right. Ours follow the same format, one clip per rubric item.
 2. In the browser: `groups/g_axolotls/photos/p_demo` with `quest_check` open (and Storage → `p_demo.jpg`, once Storage is on).
 3. Page 4 → Run. Show the six quests and the new `groups/g_pittsburgh_demo` in the console.
 
-## Screenshots for the report
+### Screenshots for the report
 1. Firestore **Data** tab showing the root collections: users, usernames, friend_requests, groups, group_invitations, invite_codes, quest_bank
 2. `users/u_anabella` and its `friends` subcollection
 3. `friend_requests/u_jen_u_anabella`
@@ -131,7 +281,7 @@ the right. Ours follow the same format, one clip per rubric item.
 
 ---
 
-## Using this in the app (Sprint 4)
+### Using this in the app (Sprint 4)
 1. Add Firebase with Swift Package Manager (Firebase 12.5 or later): `FirebaseAuth`, `FirebaseFirestore`, `FirebaseStorage`, `FirebaseAILogic`.
 2. Copy `Models.swift`, `DataAccessed.swift` and `UserInput.swift` into the app target; they depend on nothing else. From `Gemini.swift`, copy `QuestVerdict`, `QuestIdeas`, `QuestIdea` and `GeminiPrompts`.
 3. Read and write with the SDK. `DataStored.swift` uses the playground's REST helpers, so treat it as the spec: each of its write lists (same paths, same fields) becomes one `WriteBatch` in the app.
@@ -169,7 +319,7 @@ the right. Ours follow the same format, one clip per rubric item.
 - Replace the demo security rules: only group members should read a group, and photos should stay locked until `event_end_at`.
 - Gemini's free tier may use what you send to improve Google's products. Use the paid tier (it's on Blaze already for Storage) before real people's photos go through it.
 
-## Keeping keys out of GitHub
+### Keeping keys out of GitHub
 After filling in `Secrets.swift`, run this once so git ignores your local edits:
 ```
 git update-index --skip-worktree Sprint3API.playground/Sources/Secrets.swift
@@ -178,7 +328,7 @@ The rubric says the playground should come "with API keys, as needed". Send your
 key privately, restricted to the Generative Language API (Google Cloud console → APIs &
 Services → Credentials), or have them paste their own. Delete it after grading.
 
-## Troubleshooting
+### Troubleshooting
 Every error prints a hint. The common ones:
 
 | Message | Fix |

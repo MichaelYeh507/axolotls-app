@@ -49,6 +49,8 @@ struct GroupDetailsView: View {
                     }
                     .frame(maxWidth: .infinity)
 
+                    GroupCameraButton(group: group) // Part C: photos taken here go to this group
+
                     Text("Members")
                         .font(.title).bold()
                     SwiftUI.Group {
