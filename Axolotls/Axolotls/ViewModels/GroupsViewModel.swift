@@ -36,10 +36,6 @@ final class GroupsViewModel {
                 try $0.data(as: Membership.self)
             }
 
-            let membershipSnapshotTEST = try await Firestore.app
-                .collection("users")
-                .getDocuments()
-
             let activeGroupIds = Array(Set(memberships
                 .filter { $0.membershipStatus == "active" }
                 .map(\.groupId)))
@@ -64,7 +60,7 @@ final class GroupsViewModel {
             errorMessage = error.localizedDescription
         }
     }
-
+    
     private enum GroupsViewModelError: LocalizedError {
         case missingGroup(String)
     
@@ -75,9 +71,10 @@ final class GroupsViewModel {
             }
         }
     }
+    
 }
 
-private extension Array {
+extension Array {
     func asyncMap<T>(
         _ transform: (Element) async throws -> T
     ) async throws -> [T] {

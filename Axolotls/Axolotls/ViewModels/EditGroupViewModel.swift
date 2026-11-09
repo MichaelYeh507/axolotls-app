@@ -51,7 +51,8 @@ final class EditGroupViewModel {
             description: description.trimmingCharacters(in: .whitespaces),
             mode: mode,
             createdAt: group.createdAt,
-            revealAt: revealAt
+            revealAt: revealAt,
+            joinCode: group.joinCode
         )
         
         do {
