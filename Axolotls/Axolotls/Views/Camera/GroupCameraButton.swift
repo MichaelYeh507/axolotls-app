@@ -13,6 +13,7 @@ import SwiftUI
 
 struct GroupCameraButton: View {
     let group: Group
+    var onCameraClosed: () -> Void = {}
 
     @EnvironmentObject private var session: AppSession
     @State private var showingCamera = false
@@ -31,7 +32,7 @@ struct GroupCameraButton: View {
             .foregroundStyle(.black)
             .controlSize(.large)
             .disabled(session.userID == nil)
-            .fullScreenCover(isPresented: $showingCamera) {
+            .fullScreenCover(isPresented: $showingCamera, onDismiss: onCameraClosed) {
                 if let userID = session.userID {
                     CameraView(group: group, userID: userID)
                 }

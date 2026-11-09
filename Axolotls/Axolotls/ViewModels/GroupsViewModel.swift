@@ -22,7 +22,7 @@ final class GroupsViewModel {
             return
         }
         
-        isLoading = true
+        isLoading = groups.isEmpty // refreshes keep the list on screen instead of flashing a spinner
         errorMessage = nil
         
         do {

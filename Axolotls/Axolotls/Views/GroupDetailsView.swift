@@ -15,6 +15,9 @@ struct GroupDetailsView: View {
     @State private var invitePopup = false
     @State private var viewModel = GroupDetailsViewModel()
     @State private var showConfirmation = false
+    @State private var photosRefreshID = 0
+    @State private var showGame = false
+    @State private var canPlayGame = false // the game shows real photos, so it waits for the reveal
     
     var body: some View {
         let darkPurple = Color(red: 0.2196, green: 0.1568, blue: 0.3058)
@@ -49,7 +52,9 @@ struct GroupDetailsView: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    GroupCameraButton(group: group) // Part C: photos taken here go to this group
+                    GroupCameraButton(group: group) { // Part C: photos taken here go to this group
+                        photosRefreshID += 1
+                    }
 
                     Text("Members")
                         .font(.title).bold()
@@ -80,7 +85,7 @@ struct GroupDetailsView: View {
 
                     Text("Photos")
                         .font(.title).bold()
-                    Text("[photos here in V2]")
+                    GroupGalleryView(group: group, refreshID: photosRefreshID)
                 }
                 .frame(
                     maxWidth: .infinity,
@@ -92,6 +97,10 @@ struct GroupDetailsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button("Play Game") {
+                            showGame = true
+                        }
+                        .disabled(!canPlayGame)
                         NavigationLink("Edit Group") {
                             EditGroupView(group: group)
                         }
@@ -128,9 +137,25 @@ struct GroupDetailsView: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: $showGame) {
+                GuessPhotoTakersView(group: group) {
+                    showGame = false
+                }
+            }
             .foregroundStyle(.white)
             .task(id: session.userID) {
                 await viewModel.loadMembers(groupId: group.id, curUserId: session.userID)
+            }
+            .task(id: group.revealAt) {
+                let wait = group.revealAt.timeIntervalSinceNow
+                if wait > 0 {
+                    do {
+                        try await Task.sleep(for: .seconds(wait + 0.1))
+                    } catch {
+                        return // view went away
+                    }
+                }
+                canPlayGame = true
             }
         }
     }
