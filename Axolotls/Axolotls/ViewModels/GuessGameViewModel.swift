@@ -25,13 +25,17 @@ final class GuessGameViewModel {
     private(set) var game = GuessGame(photos: [], players: [])
     private(set) var players: [GamePlayer] = []
     private(set) var images: [String: UIImage] = [:]   // photo id -> image
+    private(set) var failedImageIds: Set<String> = []
 
     private let groupId: String
-    private let photoService = FirebasePhotoService()
+    private let photoService: GroupPhotoReading
     private var allPhotos: [GroupPhoto] = []
 
-    init(groupId: String) {
+    private static let maxImageBytes: Int64 = 10 * 1024 * 1024
+
+    init(groupId: String, photoService: GroupPhotoReading? = nil) {
         self.groupId = groupId
+        self.photoService = photoService ?? FirebasePhotoService()
     }
 
     // MARK: - Loading
@@ -74,13 +78,21 @@ final class GuessGameViewModel {
     //loads the picture for a photo, if it isn't already loaded
     func loadImage(for photo: GroupPhoto) async {
         guard let id = photo.id, images[id] == nil else { return }
-        if let data = try? await photoService.imageData(for: photo), let image = UIImage(data: data) {
+        failedImageIds.remove(id) // back to the spinner while this attempt runs
+        if let data = try? await photoService.imageData(for: photo, maxSize: Self.maxImageBytes),
+           let image = UIImage(data: data) {
             images[id] = image
+        } else {
+            failedImageIds.insert(id)
         }
     }
 
     func image(for round: GuessRound) -> UIImage? {
         images[round.id]
+    }
+
+    func imageFailed(for round: GuessRound) -> Bool {
+        failedImageIds.contains(round.id)
     }
 
     // MARK: - Playing

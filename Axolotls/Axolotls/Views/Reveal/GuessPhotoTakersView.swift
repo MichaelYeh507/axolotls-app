@@ -114,6 +114,15 @@ struct GuessPhotoTakersView: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else if viewModel.imageFailed(for: round) {
+                    VStack(spacing: 8) {
+                        Text("Couldn't load this photo")
+                        Button("Try Again") {
+                            Task { await viewModel.loadImage(for: round.photo) }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
+                    }
                 } else {
                     ProgressView().tint(.white)
                 }
@@ -133,7 +142,8 @@ struct GuessPhotoTakersView: View {
                 .background(buttonColor(player, round: round), in: RoundedRectangle(cornerRadius: 12))
                 .foregroundStyle(.white)
         }
-        .disabled(round.hasGuessed)
+        // No guessing while the photo loads. A failed photo stays guessable so the game can't get stuck.
+        .disabled(round.hasGuessed || (viewModel.image(for: round) == nil && !viewModel.imageFailed(for: round)))
     }
 
     //after a guess: the right answer turns green, a wrong pick turns coral

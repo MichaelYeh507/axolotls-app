@@ -15,6 +15,8 @@ struct GroupsView: View {
     @State private var revealViewModel = GroupRevealViewModel()
     @State private var revealRoute: RevealRoute?          // where we navigate to
     @State private var pendingRevealRoute: RevealRoute?   // held until the popup closes
+    @State private var needsReloadOnReturn = false
+    @State private var returnReloadID = 0
     
     var body: some View {
         SwiftUI.Group {
@@ -52,12 +54,20 @@ struct GroupsView: View {
         .navigationDestination(item: $revealRoute) { route in
             revealDestination(for: route)
         }
-        .onAppear { revealViewModel.check(viewModel.groups) }
-        .task(id: "\(session.userID ?? "")-\(refreshID)") {
-            await viewModel.loadGroups(for: session.userID)
+        .onAppear {
+            // Coming back from another screen: a group may have been edited, so reload first.
+            if needsReloadOnReturn {
+                needsReloadOnReturn = false
+                returnReloadID += 1
+            }
         }
-        //reveal
-        .task(id: viewModel.groups.map(\.id)) {
+        .onDisappear { needsReloadOnReturn = true }
+        .task(id: "\(session.userID ?? "")-\(refreshID)-\(returnReloadID)") {
+            await viewModel.loadGroups(for: session.userID)
+            revealViewModel.check(viewModel.groups)
+        }
+        //reveal: restarts when a group's reveal date changes, not just its id
+        .task(id: viewModel.groups.map { "\($0.id ?? "")-\($0.revealAt.timeIntervalSince1970)" }) {
             await revealViewModel.watch(viewModel.groups)
         }
         .fullScreenCover(
