@@ -89,7 +89,7 @@ struct GuessPhotoTakersView: View {
         VStack(spacing: 16) {
             Text("Who's playing?")
                 .font(.title.bold())
-            Text("Tap Ready to join. Players get 15 seconds per photo.")
+            Text("Tap Ready to join, or play solo. Players get 15 seconds per photo.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.8))
 
@@ -129,7 +129,7 @@ struct GuessPhotoTakersView: View {
                 Button {
                     Task { await viewModel.start() }
                 } label: {
-                    Text("Start Game")
+                    Text(viewModel.readyCount == 1 ? "Play Solo" : "Start Game")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
@@ -143,14 +143,14 @@ struct GuessPhotoTakersView: View {
     }
 
     private var lobbyStatus: String {
-        if viewModel.readyCount < GameSession.minimumPlayers {
-            return "Waiting for at least \(GameSession.minimumPlayers) players to be ready."
+        if viewModel.readyCount == 0 {
+            return "Tap Ready to play. You can play solo or wait for others to join."
+        }
+        if viewModel.canStart && viewModel.readyCount == 1 {
+            return "No one else is ready yet. Play solo now, or wait for others to tap Ready."
         }
         if viewModel.canStart {
             return "Everyone who's ready will play."
-        }
-        if let ownerName = viewModel.waitingForOwnerName, viewModel.isReady {
-            return "Waiting for \(ownerName) to start the game."
         }
         return viewModel.isReady ? "Waiting for the game to start." : "Tap Ready to play in this game."
     }
@@ -177,7 +177,7 @@ struct GuessPhotoTakersView: View {
 
                 photoView(round)
 
-                Text(prompt(for: round, isRevealed: secondsLeft == nil))
+                Text(prompt(for: round, index: index, isRevealed: secondsLeft == nil))
                     .font(.title3.bold())
                     .multilineTextAlignment(.center)
                     .foregroundStyle(promptColor(for: round, isRevealed: secondsLeft == nil))
@@ -250,8 +250,12 @@ struct GuessPhotoTakersView: View {
         return .white.opacity(0.08)
     }
 
-    private func prompt(for round: GuessRound, isRevealed: Bool) -> String {
-        guard isRevealed else { return round.hasGuessed ? "Locked in!" : "Who took this?" }
+    private func prompt(for round: GuessRound, index: Int, isRevealed: Bool) -> String {
+        guard isRevealed else {
+            guard round.hasGuessed else { return "Who took this?" }
+            let waiting = viewModel.playersStillAnswering(round: index)
+            return waiting > 0 ? "Locked in! Waiting for \(waiting) more..." : "Locked in!"
+        }
         if round.isCorrect { return "Correct!" }
         let answer = viewModel.name(for: round.answerId)
         return round.hasGuessed ? "Nope! It was \(answer)" : "Time's up! It was \(answer)"

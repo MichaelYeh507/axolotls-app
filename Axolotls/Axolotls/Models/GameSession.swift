@@ -25,7 +25,7 @@ struct GameRoundPlan: Codable, Hashable {
 }
 
 struct GameSession: Codable, Identifiable {
-    static let minimumPlayers = 2
+    static let minimumPlayers = 1
     static let lobbyLifetime: TimeInterval = 30 * 60
 
     @DocumentID var id: String?
@@ -54,17 +54,18 @@ struct GameSession: Codable, Identifiable {
         case finishedAt = "finished_at"
     }
 
-    var timeline: GameTimeline? {
-        startedAt.map { GameTimeline(startedAt: $0, roundCount: rounds.count) }
+    //the guesses let a round end early once every player has locked in
+    func timeline(guesses: [PhotoGuess] = []) -> GameTimeline? {
+        startedAt.map {
+            GameTimeline(startedAt: $0, roundCount: rounds.count, participantIds: participantIds, guesses: guesses)
+        }
     }
 
-    //the owner starts if they're playing; otherwise anyone who's ready can
-    func canStart(userId: String, ownerId: String?) -> Bool {
-        guard gameStatus == .lobby,
-              readyIds.count >= Self.minimumPlayers,
-              readyIds.contains(userId) else { return false }
-        guard let ownerId, readyIds.contains(ownerId) else { return true }
-        return userId == ownerId
+    //anyone who's ready can start the game
+    func canStart(userId: String) -> Bool {
+        gameStatus == .lobby
+            && readyIds.count >= Self.minimumPlayers
+            && readyIds.contains(userId)
     }
 
     //whether someone opening the game should land in this session
@@ -73,7 +74,8 @@ struct GameSession: Codable, Identifiable {
         case .lobby:
             return date.timeIntervalSince(createdAt) < Self.lobbyLifetime
         case .playing:
-            guard let timeline else { return false }
+            // without guesses this is the longest the game can run
+            guard let timeline = timeline() else { return false }
             return date < timeline.endsAt
         case .finished:
             return false
@@ -111,8 +113,10 @@ enum GamePhase: Equatable {
     case finished
 }
 
-//every phone works out the current question from the shared start time,
-//so the game keeps going even if the person who started it drops out
+//every phone works out the current question from the shared start time and the
+//shared guesses, so the game keeps going even if the person who started it drops out.
+//A round's answer time ends at the 15 second deadline, or as soon as every player
+//has locked in; later rounds shift earlier to match.
 struct GameTimeline {
     static let answerSeconds: TimeInterval = 15
     static let resultSeconds: TimeInterval = 3
@@ -120,22 +124,53 @@ struct GameTimeline {
 
     let startedAt: Date
     let roundCount: Int
+    private let roundStarts: [Date]
+    private let answerEnds: [Date]
 
-    var endsAt: Date { startedAt.addingTimeInterval(Double(roundCount) * Self.roundSeconds) }
+    init(startedAt: Date, roundCount: Int, participantIds: [String] = [], guesses: [PhotoGuess] = []) {
+        self.startedAt = startedAt
+        self.roundCount = roundCount
+
+        let players = Set(participantIds)
+        var starts: [Date] = []
+        var ends: [Date] = []
+        var cursor = startedAt
+        for round in 0..<max(roundCount, 0) {
+            let deadline = cursor.addingTimeInterval(Self.answerSeconds)
+            let roundGuesses = guesses.filter { $0.round == round && players.contains($0.userId) }
+            var end = deadline
+            if !players.isEmpty, Set(roundGuesses.map(\.userId)) == players,
+               let lastLockIn = roundGuesses.map(\.answeredAt).max() {
+                // clamped so a phone with a wrong clock can't push the round outside its window
+                end = min(max(lastLockIn, cursor), deadline)
+            }
+            starts.append(cursor)
+            ends.append(end)
+            cursor = end.addingTimeInterval(Self.resultSeconds)
+        }
+        roundStarts = starts
+        answerEnds = ends
+    }
+
+    var endsAt: Date {
+        answerEnds.last?.addingTimeInterval(Self.resultSeconds) ?? startedAt
+    }
 
     func roundStart(_ round: Int) -> Date {
-        startedAt.addingTimeInterval(Double(round) * Self.roundSeconds)
+        roundStarts.indices.contains(round)
+            ? roundStarts[round]
+            : startedAt.addingTimeInterval(Double(round) * Self.roundSeconds)
     }
 
     func phase(at date: Date) -> GamePhase {
         let elapsed = date.timeIntervalSince(startedAt)
         if elapsed < 0 { return .countdown(secondsLeft: Int((-elapsed).rounded(.up))) }
-        guard date < endsAt else { return .finished }
+        guard date < endsAt, let round = roundStarts.lastIndex(where: { $0 <= date }) else { return .finished }
 
-        let round = Int(elapsed / Self.roundSeconds)
-        let intoRound = elapsed - Double(round) * Self.roundSeconds
-        if intoRound < Self.answerSeconds {
-            return .answering(round: round, secondsLeft: Int((Self.answerSeconds - intoRound).rounded(.up)))
+        if date < answerEnds[round] {
+            // the timer always counts down to the deadline, even if everyone may lock in sooner
+            let deadline = roundStarts[round].addingTimeInterval(Self.answerSeconds)
+            return .answering(round: round, secondsLeft: Int(deadline.timeIntervalSince(date).rounded(.up)))
         }
         return .result(round: round)
     }
@@ -152,7 +187,7 @@ enum GameLeaderboard {
     //most correct answers first; ties go to whoever answered correctly fastest
     static func entries(session: GameSession, guesses: [PhotoGuess],
                         name: (String) -> String) -> [LeaderboardEntry] {
-        guard let timeline = session.timeline else { return [] }
+        guard let timeline = session.timeline(guesses: guesses) else { return [] }
 
         return session.participantIds.map { userId in
             let correct = guesses.filter { $0.userId == userId && $0.isCorrect }

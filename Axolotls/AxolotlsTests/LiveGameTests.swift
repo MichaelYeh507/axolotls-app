@@ -58,7 +58,7 @@ private final class FakeGameService: GameSessionServing {
     var startedRounds: [GameRoundPlan]?
 
     func roster(groupId: String, photographerIds: Set<String>) async throws -> GameRoster {
-        GameRoster(players: [GamePlayer(id: "amy", name: "Amy"), GamePlayer(id: "ben", name: "Ben")], ownerId: nil)
+        GameRoster(players: [GamePlayer(id: "amy", name: "Amy"), GamePlayer(id: "ben", name: "Ben")])
     }
     func joinOrCreateSession(groupId: String, userId: String, now: Date) async throws -> String { "s" }
     func sessionUpdates(groupId: String, sessionId: String) -> AsyncThrowingStream<GameSession, Error> {
@@ -68,7 +68,7 @@ private final class FakeGameService: GameSessionServing {
         AsyncThrowingStream { $0.finish() }
     }
     func setReady(_ isReady: Bool, groupId: String, sessionId: String, userId: String) async throws {}
-    func startGame(groupId: String, sessionId: String, userId: String, ownerId: String?,
+    func startGame(groupId: String, sessionId: String, userId: String,
                    rounds: [GameRoundPlan], startsAt: Date) async throws {
         startedRounds = rounds
     }
@@ -99,35 +99,61 @@ struct GameTimelineTests {
         #expect(timeline.phase(at: start.addingTimeInterval(179.9)) == .result(round: 9))
         #expect(timeline.phase(at: start.addingTimeInterval(180)) == .finished)
     }
+
+    @Test func revealsAsSoonAsEveryoneLocksIn() {
+        let timeline = GameTimeline(startedAt: start, roundCount: 2, participantIds: ["amy", "ben"],
+                                    guesses: [makeGuess(user: "amy", round: 0, correct: true, after: 4),
+                                              makeGuess(user: "ben", round: 0, correct: false, after: 6)])
+        #expect(timeline.phase(at: start.addingTimeInterval(5)) == .answering(round: 0, secondsLeft: 10))
+        #expect(timeline.phase(at: start.addingTimeInterval(6)) == .result(round: 0))
+        // the next photo starts 3 seconds after the reveal instead of after the full 15
+        #expect(timeline.phase(at: start.addingTimeInterval(9)) == .answering(round: 1, secondsLeft: 15))
+        #expect(timeline.roundStart(1) == start.addingTimeInterval(9))
+        #expect(timeline.endsAt == start.addingTimeInterval(9 + 18))
+    }
+
+    @Test func keepsWaitingUntilEveryoneLocksIn() {
+        let timeline = GameTimeline(startedAt: start, roundCount: 2, participantIds: ["amy", "ben"],
+                                    guesses: [makeGuess(user: "amy", round: 0, correct: true, after: 4)])
+        #expect(timeline.phase(at: start.addingTimeInterval(10)) == .answering(round: 0, secondsLeft: 5))
+    }
+
+    @Test func soloPlayerRevealsRightAway() {
+        let timeline = GameTimeline(startedAt: start, roundCount: 1, participantIds: ["amy"],
+                                    guesses: [makeGuess(user: "amy", round: 0, correct: true, after: 2)])
+        #expect(timeline.phase(at: start.addingTimeInterval(2)) == .result(round: 0))
+        #expect(timeline.phase(at: start.addingTimeInterval(5)) == .finished)
+    }
+
+    @Test func guessesFromNonPlayersDoNotEndTheRound() {
+        let timeline = GameTimeline(startedAt: start, roundCount: 1, participantIds: ["amy"],
+                                    guesses: [makeGuess(user: "cat", round: 0, correct: true, after: 2)])
+        #expect(timeline.phase(at: start.addingTimeInterval(3)) == .answering(round: 0, secondsLeft: 12))
+    }
 }
 
 struct GameStartRuleTests {
-    @Test func ownerStartsWhenTheyArePlaying() {
-        let session = makeSession(ready: ["owner", "amy"])
-        #expect(session.canStart(userId: "owner", ownerId: "owner"))
-        #expect(!session.canStart(userId: "amy", ownerId: "owner"))
+    @Test func anyoneReadyCanStart() {
+        let session = makeSession(ready: ["owner", "amy", "ben"])
+        #expect(session.canStart(userId: "owner"))
+        #expect(session.canStart(userId: "amy"))
+        #expect(session.canStart(userId: "ben"))
     }
 
-    @Test func anyoneReadyCanStartWhenTheOwnerIsNotPlaying() {
-        let session = makeSession(ready: ["amy", "ben"])
-        #expect(session.canStart(userId: "amy", ownerId: "owner"))
-        #expect(session.canStart(userId: "ben", ownerId: "owner"))
+    @Test func someoneWhoIsNotReadyCannotStart() {
+        #expect(!makeSession(ready: ["amy", "ben"]).canStart(userId: "owner"))
     }
 
-    @Test func anOwnerWhoIsNotReadyCannotStart() {
-        #expect(!makeSession(ready: ["amy", "ben"]).canStart(userId: "owner", ownerId: "owner"))
+    @Test func aSinglePlayerCanPlaySolo() {
+        #expect(makeSession(ready: ["amy"]).canStart(userId: "amy"))
     }
 
-    @Test func needsTwoReadyPlayers() {
-        #expect(!makeSession(ready: ["owner"]).canStart(userId: "owner", ownerId: "owner"))
+    @Test func needsSomeoneReady() {
+        #expect(!makeSession(ready: []).canStart(userId: "amy"))
     }
 
     @Test func canOnlyStartFromTheLobby() {
-        #expect(!makeSession(status: .playing, ready: ["owner", "amy"]).canStart(userId: "owner", ownerId: "owner"))
-    }
-
-    @Test func worksWhenTheGroupHasNoOwner() {
-        #expect(makeSession(ready: ["amy", "ben"]).canStart(userId: "amy", ownerId: nil))
+        #expect(!makeSession(status: .playing, ready: ["owner", "amy"]).canStart(userId: "owner"))
     }
 }
 

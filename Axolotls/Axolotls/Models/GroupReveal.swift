@@ -13,10 +13,13 @@ protocol RevealSeenStore {
     func markSeen(groupID: String)
 }
 
-//default store, backed by UserDefaults so the popup doesn't come back after relaunch.
-struct UserDefaultsRevealSeenStore: RevealSeenStore {
-    var defaults: UserDefaults = .standard
-    private let key = "revealSeenGroupIDs"
+//default store, saved to a file so the popup doesn't come back after relaunch.
+//The file is written to disk right away. UserDefaults only saves every few seconds,
+//so quitting the app (or stopping it from Xcode) could lose the "seen" mark.
+struct FileRevealSeenStore: RevealSeenStore {
+    var fileURL: URL = URL.applicationSupportDirectory.appending(path: "revealSeenGroupIDs.json")
+    var legacyDefaults: UserDefaults = .standard     // where older builds kept the list
+    private static let legacyKey = "revealSeenGroupIDs"
 
     func hasSeen(groupID: String) -> Bool {
         seenIDs.contains(groupID)
@@ -24,12 +27,25 @@ struct UserDefaultsRevealSeenStore: RevealSeenStore {
 
     func markSeen(groupID: String) {
         var ids = seenIDs
-        ids.insert(groupID)
-        defaults.set(Array(ids), forKey: key)
+        guard ids.insert(groupID).inserted else { return }
+        save(ids)
     }
 
     private var seenIDs: Set<String> {
-        Set(defaults.stringArray(forKey: key) ?? [])
+        let legacy = Set(legacyDefaults.stringArray(forKey: Self.legacyKey) ?? [])
+        guard let data = try? Data(contentsOf: fileURL),
+              let saved = try? JSONDecoder().decode([String].self, from: data) else { return legacy }
+        return legacy.union(saved)
+    }
+
+    private func save(_ ids: Set<String>) {
+        do {
+            try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            try JSONEncoder().encode(ids.sorted()).write(to: fileURL, options: .atomic)
+        } catch {
+            // the popup just shows again next launch; nothing else depends on this
+        }
     }
 }
 

@@ -24,14 +24,18 @@ final class GroupRevealViewModel {
     private let now: () -> Date
 
     init(store: RevealSeenStore? = nil, now: @escaping () -> Date = Date.init) {
-        self.store = store ?? UserDefaultsRevealSeenStore()
+        self.store = store ?? FileRevealSeenStore()
         self.now = now
     }
 
     //shows the popup if one of these groups has ended and hasn't been revealed yet.
+    //It's marked seen as soon as it shows, so closing the app doesn't bring it back.
     func check(_ groups: [Group]) {
-        guard readyGroup == nil else { return }
-        readyGroup = GroupReveal.nextReady(in: groups, at: now(), store: store)
+        guard readyGroup == nil,
+              let group = GroupReveal.nextReady(in: groups, at: now(), store: store),
+              let id = group.id else { return }
+        store.markSeen(groupID: id)
+        readyGroup = group
     }
 
     //keeps  popup on time while the app is open: sleeps until the next
@@ -61,10 +65,9 @@ final class GroupRevealViewModel {
         return .album(groupID: id)
     }
 
-    //hides the popup and remembers it was shown, so it won't pop up again
+    //hides the popup (it was already marked seen when it appeared)
     private func dismissPopup() -> String? {
         guard let id = readyGroup?.id else { return nil }
-        store.markSeen(groupID: id)
         readyGroup = nil
         return id
     }

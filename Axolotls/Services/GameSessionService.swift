@@ -14,7 +14,6 @@ import FirebaseFirestore
 
 struct GameRoster {
     var players: [GamePlayer]
-    var ownerId: String?
 }
 
 /// What the game needs from the backend. Tests swap in a fake.
@@ -24,7 +23,7 @@ protocol GameSessionServing {
     func sessionUpdates(groupId: String, sessionId: String) -> AsyncThrowingStream<GameSession, Error>
     func guessUpdates(groupId: String, sessionId: String) -> AsyncThrowingStream<[PhotoGuess], Error>
     func setReady(_ isReady: Bool, groupId: String, sessionId: String, userId: String) async throws
-    func startGame(groupId: String, sessionId: String, userId: String, ownerId: String?,
+    func startGame(groupId: String, sessionId: String, userId: String,
                    rounds: [GameRoundPlan], startsAt: Date) async throws
     func submit(_ guess: PhotoGuess, groupId: String, sessionId: String) async throws
     func markFinished(groupId: String, sessionId: String, at date: Date) async throws
@@ -54,7 +53,7 @@ final class FirebaseGameSessionService: GameSessionServing {
         }
         players.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
-        return GameRoster(players: players, ownerId: memberships.first { $0.role == "owner" }?.userId)
+        return GameRoster(players: players)
     }
 
     //a transaction, so two people opening the game together land in the same lobby
@@ -133,7 +132,7 @@ final class FirebaseGameSessionService: GameSessionServing {
     }
 
     //a transaction, so the players are exactly who's ready at the moment the game starts
-    func startGame(groupId: String, sessionId: String, userId: String, ownerId: String?,
+    func startGame(groupId: String, sessionId: String, userId: String,
                    rounds: [GameRoundPlan], startsAt: Date) async throws {
         let ref = sessionRef(groupId: groupId, sessionId: sessionId)
         let encodedRounds = try rounds.map { try Firestore.Encoder().encode($0) }
@@ -141,7 +140,7 @@ final class FirebaseGameSessionService: GameSessionServing {
         _ = try await db.runTransaction { transaction, errorPointer -> Any? in
             do {
                 let session = try transaction.getDocument(ref).data(as: GameSession.self)
-                guard session.canStart(userId: userId, ownerId: ownerId) else { return nil }
+                guard session.canStart(userId: userId) else { return nil }
                 transaction.updateData([
                     "game_status": GameStatus.playing.rawValue,
                     "participant_ids": session.readyIds,

@@ -38,7 +38,6 @@ final class GuessGameViewModel {
     private let now: () -> Date
 
     private var allPhotos: [GroupPhoto] = []
-    private var ownerId: String?
     private(set) var userId: String?
     private var loadError: String?
     private var hasNoPhotos = false
@@ -65,7 +64,7 @@ final class GuessGameViewModel {
         if hasNoPhotos { return .noPhotos }
         guard let gameSession, let userId else { return .loading }
         if gameSession.gameStatus == .lobby { return .lobby }
-        guard gameSession.participantIds.contains(userId), let timeline = gameSession.timeline else {
+        guard gameSession.participantIds.contains(userId), let timeline = gameSession.timeline(guesses: guesses) else {
             return .alreadyStarted
         }
 
@@ -98,7 +97,6 @@ final class GuessGameViewModel {
             let roster = try await gameService.roster(groupId: groupId,
                                                       photographerIds: Set(allPhotos.map(\.photographerId)))
             players = roster.players
-            ownerId = roster.ownerId
 
             let sessionId = try await gameService.joinOrCreateSession(groupId: groupId, userId: userId, now: now())
             await withTaskGroup(of: Void.self) { tasks in
@@ -172,7 +170,7 @@ final class GuessGameViewModel {
 
     var canStart: Bool {
         guard let userId else { return false }
-        return gameSession?.canStart(userId: userId, ownerId: ownerId) ?? false
+        return gameSession?.canStart(userId: userId) ?? false
     }
 
     var readyCount: Int { gameSession?.readyIds.count ?? 0 }
@@ -180,13 +178,6 @@ final class GuessGameViewModel {
     var readyPlayers: [GamePlayer] {
         let readyIds = gameSession?.readyIds ?? []
         return players.filter { readyIds.contains($0.id) }
-    }
-
-    //the owner, when they're the only one who can start right now
-    var waitingForOwnerName: String? {
-        guard let ownerId, ownerId != userId,
-              gameSession?.readyIds.contains(ownerId) == true else { return nil }
-        return name(for: ownerId)
     }
 
     func toggleReady() async {
@@ -207,7 +198,7 @@ final class GuessGameViewModel {
             round.photo.id.map { GameRoundPlan(photoId: $0, candidateIds: round.choices.map(\.id)) }
         }
         do {
-            try await gameService.startGame(groupId: groupId, sessionId: sessionId, userId: userId, ownerId: ownerId,
+            try await gameService.startGame(groupId: groupId, sessionId: sessionId, userId: userId,
                                             rounds: rounds, startsAt: now().addingTimeInterval(Self.countdownSeconds))
         } catch {
             actionError = error.localizedDescription
@@ -233,6 +224,13 @@ final class GuessGameViewModel {
 
     func pick(forRound index: Int) -> String? {
         localPicks[index] ?? guesses.first { $0.round == index && $0.userId == userId }?.selectedUserId
+    }
+
+    //players in this game who haven't locked in an answer for the round yet
+    func playersStillAnswering(round index: Int) -> Int {
+        let participants = Set(gameSession?.participantIds ?? [])
+        let lockedIn = Set(guesses.filter { $0.round == index }.map(\.userId))
+        return participants.subtracting(lockedIn).count
     }
 
     //only rounds whose answers have been shown, so the score can't give an answer away
