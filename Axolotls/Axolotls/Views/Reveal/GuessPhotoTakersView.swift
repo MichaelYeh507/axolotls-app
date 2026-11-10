@@ -31,6 +31,7 @@ struct GuessPhotoTakersView: View {
         }
         .navigationTitle("Guess the Photo Takers")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .task { await viewModel.load() }
     }
 

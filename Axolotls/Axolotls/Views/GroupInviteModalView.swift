@@ -75,6 +75,7 @@ struct GroupInviteModalView: View {
                                             ? "checkmark.circle.fill"
                                             : "circle")
                                     }
+                                    .foregroundStyle(.black)
                                     .accessibilityLabel(
                                         viewModel.friends[index].1
                                             ? "Remove \(viewModel.friends[index].0.username)"
