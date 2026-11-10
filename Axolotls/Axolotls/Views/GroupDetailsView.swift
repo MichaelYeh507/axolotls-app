@@ -11,6 +11,7 @@ struct GroupDetailsView: View {
     var group: Group
     
     @EnvironmentObject private var session: AppSession
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var invitePopup = false
     @State private var viewModel = GroupDetailsViewModel()
@@ -115,7 +116,7 @@ struct GroupDetailsView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                     }
-                    .foregroundStyle(.black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .confirmationDialog(
                         "Permanently leave the group?",
                         isPresented: $showConfirmation,

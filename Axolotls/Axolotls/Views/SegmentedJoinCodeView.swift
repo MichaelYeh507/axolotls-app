@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct SegmentedJoinCodeView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var joinCode: String
     var isFocused = false
     
@@ -20,7 +22,7 @@ struct SegmentedJoinCodeView: View {
                 
                 Text(digit)
                     .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .frame(width: 45, height: 55)
                     .background(Color(.systemGray6))
                     .overlay(

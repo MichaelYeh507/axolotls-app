@@ -12,6 +12,7 @@ struct GroupInviteModalView: View {
     var members: [UserProfile]
     
     @EnvironmentObject private var session: AppSession
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = GroupInviteModalViewModel()
     
@@ -66,7 +67,6 @@ struct GroupInviteModalView: View {
                             List(viewModel.friends.indices, id: \.self) { index in
                                 HStack {
                                     Text(viewModel.friends[index].0.username)
-                                    .foregroundStyle(.black)
                                     Spacer()
                                     Button {
                                         viewModel.friends[index].1.toggle()
@@ -75,13 +75,12 @@ struct GroupInviteModalView: View {
                                             ? "checkmark.circle.fill"
                                             : "circle")
                                     }
-                                    .foregroundStyle(.black)
                                     .accessibilityLabel(
                                         viewModel.friends[index].1
                                             ? "Remove \(viewModel.friends[index].0.username)"
                                             : "Add \(viewModel.friends[index].0.username)"
                                     )
-                                }
+                                }.foregroundStyle(colorScheme == .dark ? .white : .black)
                             }
                         }
                     }

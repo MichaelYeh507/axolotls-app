@@ -147,7 +147,7 @@ struct SettingsView: View {
                     Text(
                         "Changing your email, changing your password, " +
                         "or deleting your account requires your current password."
-                    )
+                    ).foregroundStyle(.white)
                 }
 
                 // MARK: - Status Messages
