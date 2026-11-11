@@ -10,9 +10,11 @@ import SwiftUI
 struct EditGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: EditGroupViewModel
-    
-    init(group: Group) {
+    let onSave: (Group) -> Void
+
+    init(group: Group, onSave: @escaping (Group) -> Void) {
         _viewModel = State(initialValue: EditGroupViewModel(group: group))
+        self.onSave = onSave
     }
     
     var body: some View {
@@ -36,7 +38,10 @@ struct EditGroupView: View {
                 ToolbarItem(placement: .bottomBar) {
                     Button("Save") {
                         Task {
-                            await viewModel.saveChanges()
+                            if let updatedGroup = await viewModel.saveChanges() {
+                                onSave(updatedGroup)
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(viewModel.isSaving || !viewModel.isValid)

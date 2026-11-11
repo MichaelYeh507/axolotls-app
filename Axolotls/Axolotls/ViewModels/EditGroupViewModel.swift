@@ -36,10 +36,10 @@ final class EditGroupViewModel {
     }
     
     @MainActor
-    func saveChanges() async -> Bool {
+    func saveChanges() async -> Group? {
         guard let groupID = group.id else {
             errorMessage = "Missing group document ID."
-            return false
+            return nil
         }
         
         isSaving = true
@@ -62,11 +62,11 @@ final class EditGroupViewModel {
                 .setData(from: updatedGroup, merge: true)
             
             isSaving = false
-            return true
+            return updatedGroup
         } catch {
             isSaving = false
             self.errorMessage = error.localizedDescription
-            return false
+            return nil
         }
     }
 }
