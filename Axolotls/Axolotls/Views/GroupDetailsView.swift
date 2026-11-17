@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct GroupDetailsView: View {
-    var group: Group
+    @State private var group: Group
     
     @EnvironmentObject private var session: AppSession
     @Environment(\.colorScheme) private var colorScheme
@@ -19,6 +19,10 @@ struct GroupDetailsView: View {
     @State private var photosRefreshID = 0
     @State private var showGame = false
     @State private var canPlayGame = false // the game shows real photos, so it waits for the reveal
+
+    init(group: Group) {
+        _group = State(initialValue: group)
+    }
     
     var body: some View {
         let darkPurple = Color(red: 0.2196, green: 0.1568, blue: 0.3058)
@@ -103,7 +107,9 @@ struct GroupDetailsView: View {
                         }
                         .disabled(!canPlayGame)
                         NavigationLink("Edit Group") {
-                            EditGroupView(group: group)
+                            EditGroupView(group: group) { updatedGroup in
+                                group = updatedGroup
+                            }
                         }
                         Button("Invite People") {
                             invitePopup.toggle()
