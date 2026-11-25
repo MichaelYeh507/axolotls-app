@@ -1,4 +1,3 @@
-
 import SwiftUI
 import Combine
 
@@ -57,6 +56,8 @@ struct SettingsView: View {
                 }
 
                 // MARK: - Notifications
+                // Each switch saves as soon as it is flipped (see .onChange(of: vm.prefs) below),
+                // so there is no separate "Save Preferences" button.
 
                 Section {
 
@@ -73,21 +74,6 @@ struct SettingsView: View {
                     Toggle(
                         "Quests",
                         isOn: $vm.prefs.questNotificationsEnabled
-                    )
-
-                    Button("Save Preferences") {
-                        guard let uid = session.userID else {
-                            vm.errorMessage = "You must be signed in."
-                            return
-                        }
-
-                        Task {
-                            await vm.savePreferences(uid: uid)
-                        }
-                    }
-                    .disabled(
-                        !vm.prefsChanged(from: session.profile) ||
-                        vm.isWorking
                     )
                 } header: {
                     Text("Notifications").foregroundStyle(.white)
@@ -199,6 +185,16 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .toolbarColorScheme(.dark, for: .navigationBar)
+            // Fill the form (and the switches) from the saved profile.
+            .onAppear { vm.load(from: session.profile) }
+            .onChange(of: session.profile) { _, newProfile in
+                vm.load(from: newProfile)   // handles the profile arriving after the screen opens
+            }
+            // Save a switch as soon as it changes.
+            .onChange(of: vm.prefs) { _, _ in
+                guard let uid = session.userID else { return }
+                Task { await vm.autoSavePreferences(uid: uid) }
+            }
             .confirmationDialog(
                 "Delete your account?",
                 isPresented: $showDeleteConfirm,

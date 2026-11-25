@@ -1,6 +1,9 @@
-
 import Foundation
 import Combine
+
+// The model type from Models/UserProfile.swift. The view model below declares its own nested
+// `NotificationPreferences`, which would hide the model inside the class, so we alias it here.
+private typealias StoredNotificationPreferences = NotificationPreferences
 
 @MainActor
 final class SettingsViewModel: ObservableObject {
@@ -38,11 +41,38 @@ final class SettingsViewModel: ObservableObject {
         errorMessage != nil
     }
 
+    /// The form is filled from the saved profile once. After that the user's own edits stay put
+    /// (so a toggle you turn off is not flipped back by a late Firestore update).
+    private var didLoad = false
+    /// The toggle values that are known to be saved in Firestore.
+    private var savedPrefs = NotificationPreferences()
+
+    // MARK: - Load saved values into the form
+
+    /// Copies the user's saved profile into the form fields.
+    /// Call from the view: `.onAppear { vm.load(from: session.profile) }`
+    /// and `.onChange(of: session.profile) { _, p in vm.load(from: p) }`.
+    func load(from profile: Any?) {
+        guard !didLoad, let profile = profile as? UserProfile else { return }
+        didLoad = true
+        displayName = profile.displayName
+        username = profile.username
+        prefs = NotificationPreferences(
+            groupInviteNotificationsEnabled: profile.notificationPreferences.groupInviteNotificationsEnabled,
+            photosAvailableNotificationsEnabled: profile.notificationPreferences.photosAvailableNotificationsEnabled,
+            questNotificationsEnabled: profile.notificationPreferences.questNotificationsEnabled
+        )
+        savedPrefs = prefs
+    }
+
     // MARK: - Profile Management
 
+    /// True when the form differs from the saved profile.
+    /// If no profile is available yet, stays true so the Save button isn't stuck disabled.
     func profileChanged(from profile: Any?) -> Bool {
-        // Connect this comparison to your UserProfile model.
-        return true
+        guard let profile = profile as? UserProfile else { return true }
+        return displayName.trimmingCharacters(in: .whitespacesAndNewlines) != profile.displayName
+            || AccountService.normalize(username) != profile.username
     }
 
     func saveProfile(uid: String, profile: Any?) async {
@@ -51,14 +81,45 @@ final class SettingsViewModel: ObservableObject {
         message = nil
         defer { isWorking = false }
 
-        // TODO: Save displayName and username to Firestore.
-        errorMessage = "Profile saving has not been connected to Firestore yet."
+        guard let profile = profile as? UserProfile else {
+            errorMessage = "Your profile hasn't loaded yet. Please try again."
+            return
+        }
+
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            errorMessage = "Display name can't be empty."
+            return
+        }
+
+        do {
+            if name != profile.displayName {
+                try await AccountService.shared.updateDisplayName(uid: uid, to: name)
+            }
+            if AccountService.normalize(username) != profile.username {
+                try await AccountService.shared.changeUsername(uid: uid, from: profile.username, to: username)
+            }
+            message = "Profile saved."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Notification Preferences
 
     func prefsChanged(from profile: Any?) -> Bool {
-        return true
+        guard let profile = profile as? UserProfile else { return true }
+        let saved = profile.notificationPreferences
+        return prefs.groupInviteNotificationsEnabled != saved.groupInviteNotificationsEnabled
+            || prefs.photosAvailableNotificationsEnabled != saved.photosAvailableNotificationsEnabled
+            || prefs.questNotificationsEnabled != saved.questNotificationsEnabled
+    }
+
+    /// Saves the toggles only if they differ from what's already saved. Use this from the
+    /// view's `.onChange(of: vm.prefs)` so each switch saves as soon as it's flipped.
+    func autoSavePreferences(uid: String) async {
+        guard prefs != savedPrefs else { return }
+        await savePreferences(uid: uid)
     }
 
     func savePreferences(uid: String) async {
@@ -67,8 +128,21 @@ final class SettingsViewModel: ObservableObject {
         message = nil
         defer { isWorking = false }
 
-        // TODO: Save notification preferences to Firestore.
-        errorMessage = "Preference saving has not been connected to Firestore yet."
+        let toSave = prefs
+        let stored = StoredNotificationPreferences(
+            groupInviteNotificationsEnabled: toSave.groupInviteNotificationsEnabled,
+            photosAvailableNotificationsEnabled: toSave.photosAvailableNotificationsEnabled,
+            questNotificationsEnabled: toSave.questNotificationsEnabled
+        )
+
+        do {
+            try await AccountService.shared.updateNotificationPreferences(uid: uid, to: stored)
+            savedPrefs = toSave
+            message = "Preferences saved."
+        } catch {
+            prefs = savedPrefs          // switches go back to what's actually saved
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Change Email
@@ -84,8 +158,16 @@ final class SettingsViewModel: ObservableObject {
             return
         }
 
-        // TODO: Connect to Firebase Auth email update.
-        errorMessage = "Email updating has not been connected to Firebase yet."
+        do {
+            try await AccountService.shared.requestEmailChange(
+                currentPassword: currentPassword,
+                newEmail: newEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            newEmail = ""
+            message = "Check your new inbox for a verification link to finish the change."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Change Password
@@ -106,8 +188,17 @@ final class SettingsViewModel: ObservableObject {
             return
         }
 
-        // TODO: Connect to Firebase Auth password update.
-        errorMessage = "Password updating has not been connected to Firebase yet."
+        do {
+            try await AccountService.shared.changePassword(
+                currentPassword: currentPassword,
+                newPassword: newPassword
+            )
+            newPassword = ""
+            currentPassword = ""
+            message = "Password updated."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Delete Account
@@ -117,8 +208,17 @@ final class SettingsViewModel: ObservableObject {
         errorMessage = nil
         defer { isWorking = false }
 
-        // TODO: Reauthenticate and delete the Firebase account.
-        errorMessage = "Account deletion has not been connected to Firebase yet."
+        guard !currentPassword.isEmpty else {
+            errorMessage = "Please enter your current password to delete your account."
+            return
+        }
+
+        do {
+            try await AccountService.shared.deleteAccount(currentPassword: currentPassword)
+            didDeleteAccount = true   // the auth listener also returns the app to the signed-out screen
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Sign Out
@@ -141,4 +241,3 @@ final class SettingsViewModel: ObservableObject {
         message = nil
     }
 }
-
